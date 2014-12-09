@@ -456,25 +456,45 @@ output_plain_fields (MuMsg *msg, const char *fields,
 		     gboolean color, gboolean threads)
 {
 	const char*	myfields;
-	int		nonempty;
+	int		nonempty, backslash = 0;
+	MuMsgFieldId	mfid;
 
 	g_return_if_fail (fields);
 	
 	for (myfields = fields, nonempty = 0; *myfields; ++myfields) {
 
-		MuMsgFieldId mfid;
-		mfid =	mu_msg_field_id_from_shortcut (*myfields, FALSE);
+		if (backslash) {
+			/* Just saw a backslash, interpret special char */
+			switch (*myfields) {
+			case 'n':
+				printf("\n");
+				break;
+			case 't':
+				printf("\t");
+				break;
+			default:
+				printf("\\%c", *myfields);
+				break;
+			};
+			backslash = 0;
+		} else if (*myfields == '\\') {
+			/* Looks like we are about to see a special char */
+			backslash = 1;
+			continue;
+		} else {
+			mfid = mu_msg_field_id_from_shortcut (*myfields, FALSE);
 
-		if (mfid == MU_MSG_FIELD_ID_NONE ||
-		    (!mu_msg_field_xapian_value (mfid) &&
-		     !mu_msg_field_xapian_contact (mfid)))
-		  nonempty += printf ("%c", *myfields);
+			if (mfid == MU_MSG_FIELD_ID_NONE ||
+			    (!mu_msg_field_xapian_value (mfid) &&
+			     !mu_msg_field_xapian_contact (mfid)))
+			  nonempty += printf ("%c", *myfields);
 
-		else {
-			ansi_color_maybe (mfid, color);
-			nonempty += mu_util_fputs_encoded
-			  (display_field (msg, mfid), stdout);
-			ansi_reset_maybe (mfid, color);
+			else {
+				ansi_color_maybe (mfid, color);
+				nonempty += mu_util_fputs_encoded
+				  (display_field (msg, mfid), stdout);
+				ansi_reset_maybe (mfid, color);
+			}
 		}
 	}
 
